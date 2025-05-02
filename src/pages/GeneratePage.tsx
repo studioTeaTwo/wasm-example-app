@@ -1,8 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import * as bip39 from 'bip39';
 import { PrimaryButton } from '../components/ui';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PageLayout from '../components/layout/PageLayout';
+import { nip44 } from "nostr-tools";
+import { hexToBytes } from '@noble/hashes/utils'
+import { WindowSSI } from '../window.ssi.type';
+
+declare global {
+  interface Window {
+    ssi: WindowSSI
+  }
+}
+
+// receiver's nostr key for NIP-44
+const npub = "npub1s49u327wc6nfs9v47zsc93jsju5teyrey87qyf3hgnksc0wu7fkqwkjrhq";
+const sec = "58fdfbf2fbab404deb98c626a2627e919e624d60984c4da0e46e2eae05243ee6";
 
 interface GeneratePageProps {
   onMnemonicConfirmed: (mnemonic: string) => void;
@@ -24,8 +36,18 @@ const GeneratePage: React.FC<GeneratePageProps> = ({
   useEffect(() => {
     const generateMnemonic = async () => {
       try {
-        // Generate a random mnemonic (128-256 bits of entropy)
-        const newMnemonic = bip39.generateMnemonic(256); // 24 words
+        // Generate a random mnemonic inside the browser
+        const xpub = await window.ssi.bitcoin.generate({type: "mnemonic", strength: 256});
+        console.log("generate", xpub)
+        // Ask the user to share the mnemonic encrypted with Nostr NIP-44
+        const encryptedSecret = await window.ssi.bitcoin.shareWith(npub, {type: "xprv", xpub});
+        console.log("shareWith", encryptedSecret)
+        // It's just a demo, so it is decypted immidiately, but it would be ideal to pass it to the SDK encrypted.
+        const userPubkey = await window.ssi.nostr.getPublicKey();
+        const sharedKey = nip44.getConversationKey(hexToBytes(sec), userPubkey);
+        const newMnemonic = nip44.decrypt(encryptedSecret.secret, sharedKey);
+        console.log("decrypt", newMnemonic)
+
         setMnemonic(newMnemonic);
       } catch (error) {
         console.error('Failed to generate mnemonic:', error);
