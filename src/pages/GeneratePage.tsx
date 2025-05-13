@@ -38,15 +38,28 @@ const GeneratePage: React.FC<GeneratePageProps> = ({
       try {
         // Generate a random mnemonic inside the browser
         const xpub = await window.ssi.bitcoin.generate({type: "mnemonic", strength: 256});
+        if (!xpub) {
+          alert("Error! Failed to generate mnemonic.")
+          return;
+        }
         console.log("generate", xpub)
         // Ask the user to share the mnemonic encrypted with Nostr NIP-44
         const encryptedSecret = await window.ssi.bitcoin.shareWith(npub, {type: "xprv", xpub});
+        if (!encryptedSecret) {
+          alert("Error! Generate your Nostr key at about:selfsovereignindividual, or, on Linux, set the primary password.")
+          return;
+        }
         console.log("shareWith", encryptedSecret)
         // It's just a demo, so it is decypted immidiately, but it would be ideal to pass it to the SDK encrypted.
         const userPubkey = await window.ssi.nostr.getPublicKey();
+        if (!userPubkey) {
+          alert("Error! Failed to read Nostr key.")
+          return;
+        }
+        console.log(userPubkey)
         const sharedKey = nip44.getConversationKey(hexToBytes(sec), userPubkey);
         const newMnemonic = nip44.decrypt(encryptedSecret.secret, sharedKey);
-        console.log("decrypt", newMnemonic)
+        console.log("decrypt", newMnemonic, sharedKey)
 
         setMnemonic(newMnemonic);
       } catch (error) {
